@@ -1,0 +1,34 @@
+# scholar-ops portals — the Scanner's complete world (INV-13).
+# Copy to portals.yml and customize. That file is gitignored.
+# Scan touches ONLY the sources listed here; it never becomes open-ended research.
+#
+# Tune the queries to your profile: your target level, fields, and nationality.
+# Do NOT hardcode personal data you would not want in a search-engine log beyond
+# level/field/region terms (INV-12 — no names, GPA, etc. in queries).
+
+search_queries:                 # Level 1: WebSearch with site: filters
+  - query: "fully funded masters scholarship computer science 2027 site:scholarshipportal.com"
+    note: "adjust field + year to your target"
+  - query: "masters scholarship developing countries site:scholars4dev.com"
+  - query: "scholarships for African students masters site:opportunitiesforafricans.com"
+  - query: "Erasmus Mundus joint masters scholarship computer science"
+
+tracked_portals:                # Level 2: Playwright navigation of specific portals
+  - name: "DAAD Scholarship Database"
+    url: "https://www2.daad.de/deutschland/stipendium/datenbank/en/21148-scholarship-database/"
+    enabled: true
+  - name: "Campus France — Search programs"
+    url: "https://www.campusfrance.org/en/scholarships-and-financial-aid"
+    enabled: true
+  - name: "Chevening Scholarships"
+    url: "https://www.chevening.org/scholarships/"
+    enabled: false
+  - name: "Mastercard Foundation Scholars Program"
+    url: "https://mastercardfdn.org/all/scholars/"
+    enabled: false
+
+filters:                        # applied on top of profile-derived eligibility (FR-063)
+  max_results_per_source: 10
+  exclude_keywords:
+    - "undergraduate only"
+    - "PhD only"
