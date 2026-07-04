@@ -6,7 +6,7 @@ Version: v1.0, 2026-07-03
 
 Scholarship seekers drown in listings, not in opportunities. Aggregators and portals surface hundreds of scholarships, but most fail on binary eligibility walls — nationality, age, degree level, GPA minimums, language certificates — that are only discovered after reading the full listing. A seeker can burn days reading 40 pages to find 35 disqualifications. Meanwhile the few genuinely winnable scholarships are governed by hard deadlines and document requirements (transcripts, references, IELTS/TOEFL) with lead times of weeks. Add scam listings (fee-to-apply, data harvesting) and spreadsheet tracking that decays every cycle, and the result is: time goes to digging, not to applying well.
 
-Companies solved the mirror problem for jobs with career-ops — AI that filters listings against a candidate profile. scholar-ops applies the same discipline to scholarships, where the filtering problem is even more binary and deadline-driven.
+The same discipline that filters job listings against a candidate profile applies to scholarships — where the filtering problem is even more binary and deadline-driven.
 
 ## 2. Personas
 
@@ -64,7 +64,7 @@ scholar-ops is a repository the seeker clones and opens with their AI CLI. A ski
 - Motivation-letter, essay, or CV/PDF generation
 - TUI dashboard or any graphical interface
 - Multi-CLI mirrors (Codex, OpenCode, Gemini skill copies)
-- Zero-token local portal parsers (career-ops "Level 0")
+- Zero-token local portal parsers
 - Multi-profile / counselor use (one profile per repo clone)
 - Email, calendar, or notification integrations
 - Auto-submission of applications, form filling, or any outbound contact with providers

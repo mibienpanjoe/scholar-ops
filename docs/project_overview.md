@@ -6,8 +6,6 @@ Version: v1.0, 2026-07-03
 
 **scholar-ops** — an AI-powered scholarship evaluation and tracking system built on Claude Code (and compatible agent CLIs). Mission: shift a scholarship seeker's time from *digging through listings* to *applying to the few worth winning*.
 
-Direct inspiration: [santifer/career-ops](https://github.com/santifer/career-ops) (MIT), which does this for job listings. scholar-ops is a fresh build adapting the same "ops" pattern to scholarships.
-
 ## Problem
 
 Finding scholarship listings is easy — aggregators, portals, and mailing lists overflow with them. Filtering is the time sink:
@@ -32,7 +30,7 @@ A repository the user clones and opens with their AI coding CLI. The agent, guid
 4. **Scan** — bounded discovery across configured portals (`portals.yml`: DAAD, Campus France, Erasmus Mundus catalogue, Chevening, Fulbright, Mastercard Foundation, aggregators), filtered by profile, feeding a pipeline inbox (`data/pipeline.md`) for later evaluation.
 5. **Deterministic scripts** — zero-token Node utilities: `doctor.mjs` (setup validation), `deadline-check.mjs` (upcoming deadlines, warnings), `tracker-check.mjs` (dedup, normalization).
 
-Philosophy (inherited from career-ops): **this is a filter, not a spray-and-pray tool.** The system recommends against applying to anything below 4.0/5 and never submits an application itself — human in the loop, always.
+Philosophy: **this is a filter, not a spray-and-pray tool.** The system recommends against applying to anything below 4.0/5 and never submits an application itself — human in the loop, always.
 
 ## MVP Scope
 

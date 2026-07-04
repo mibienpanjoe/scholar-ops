@@ -12,7 +12,7 @@ Version: v1.0, 2026-07-03
 
 Chosen over alternatives:
 
-- **vs. standalone CLI app calling an LLM API:** the Seeker already pays for and trusts their agent CLI; reusing it removes API-key management, SDK code, and release engineering. Markdown instructions iterate faster than code and are auditable by the Seeker. (Pattern proven at scale by career-ops.)
+- **vs. standalone CLI app calling an LLM API:** the Seeker already pays for and trusts their agent CLI; reusing it removes API-key management, SDK code, and release engineering. Markdown instructions iterate faster than code and are auditable by the Seeker.
 - **vs. web app:** hosting, auth, and a privacy surface for highly personal data (nationality, GPA, finances) — all liabilities the local-file model eliminates outright (INV-12 becomes a `.gitignore`, not an infrastructure program).
 - **vs. pure-agent (no scripts):** deadline arithmetic and duplicate detection done probabilistically would burn tokens on work that must be exact. The deterministic layer also independently *verifies* what the probabilistic layer wrote (defense in depth for INV-02).
 
@@ -166,7 +166,7 @@ scholar-ops/
 ├── .claude/skills/scholar-ops/SKILL.md   # Router: dispatch table + discovery menu
 ├── CLAUDE.md                             # Router: global rules (incl. INV-11 boundary)
 ├── DATA_CONTRACT.md                      # Toolbelt: user layer vs system layer
-├── README.md                             # Quickstart; credits career-ops
+├── README.md                             # Quickstart
 ├── package.json                          # Toolbelt: npm script wiring
 ├── .gitignore                            # Toolbelt: user-layer exclusion (INV-12)
 ├── config/
@@ -218,9 +218,9 @@ FR ↔ component: FR-010 Router · FR-020 ProfileStore · FR-030 Evaluator · FR
 
 **ADR-01 — Markdown instructions as executable architecture.** Mode files are the implementation of most components. Accepted trade-off: probabilistic enforcement for judgment-dependent invariants (INV-04..10), mitigated by strict step ordering, required output shapes (tables with evidence columns), and deterministic verifiers where math is involved. Rejected alternative: coding the workflow in a CLI app — loses the agent's reading comprehension, which *is* the product.
 
-**ADR-02 — Single shared rulebook (`modes/_shared.md`).** Weights, thresholds, budgets, row contract, and UNKNOWN convention are defined once and referenced by every mode. Prevents drift between evaluate/compare/tracker; mirrors career-ops' proven layout.
+**ADR-02 — Single shared rulebook (`modes/_shared.md`).** Weights, thresholds, budgets, row contract, and UNKNOWN convention are defined once and referenced by every mode. Prevents drift between evaluate/compare/tracker.
 
-**ADR-03 — Human-readable files over SQLite.** career-ops added a derived SQLite index at scale; scholar-ops MVP targets tens-to-hundreds of rows where markdown stays fast (< 2 s script budget at 500 rows) and hand-editable. Revisit only if scripts breach their performance NFC.
+**ADR-03 — Human-readable files over SQLite.** A derived SQLite index earns its keep only at scale; scholar-ops MVP targets tens-to-hundreds of rows where markdown stays fast (< 2 s script budget at 500 rows) and hand-editable. Revisit only if scripts breach their performance NFC.
 
 **ADR-04 — Scan/evaluate separation (INV-14).** Cost control and consent: a sweep may find 30 candidates; evaluating them is a separate, Seeker-initiated spend. Also keeps Scanner write access away from application state.
 

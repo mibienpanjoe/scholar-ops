@@ -4,7 +4,7 @@
 
 > This is a **filter, not a spray-and-pray tool.** It recommends against applying below 4.0/5, and it never submits anything on your behalf — you always decide and apply.
 
-Built on [Claude Code](https://claude.com/claude-code). Inspired by [santifer/career-ops](https://github.com/santifer/career-ops), which does the same for job listings — scholar-ops adapts the pattern to scholarships, where eligibility is more binary and deadlines rule everything.
+Built on [Claude Code](https://claude.com/claude-code). Scholarships live and die by eligibility walls and deadlines — so scholar-ops checks the walls first, quotes the disqualifying line back to you, and keeps everything sorted by deadline.
 
 ## Why
 
@@ -74,4 +74,4 @@ Full engineering documentation — PRD, SRS, invariants, architecture, interface
 
 ## License
 
-MIT. Credit and thanks to [career-ops](https://github.com/santifer/career-ops) for the ops-style pattern this project adapts.
+MIT.

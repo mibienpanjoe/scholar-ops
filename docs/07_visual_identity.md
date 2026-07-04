@@ -6,7 +6,7 @@ Version: v1.0, 2026-07-03
 
 ## Brand Essence
 
-**Name:** scholar-ops — "scholarship operations." The deliberate echo of career-ops signals the lineage: the same ops discipline (evaluate, gate, score, track), pointed at education funding.
+**Name:** scholar-ops — "scholarship operations." The "ops" signals the discipline: evaluate, gate, score, track — pointed at education funding.
 
 **Personality:** rigorous, protective, anti-hype. The tool exists to say *no* early and *yes* rarely and confidently. It never flatters a listing and never softens a red flag.
 
