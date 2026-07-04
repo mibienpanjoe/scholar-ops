@@ -1,0 +1,16 @@
+{
+  "name": "scholar-ops",
+  "version": "0.1.0",
+  "description": "AI-powered scholarship evaluation and tracking command center, built on Claude Code. Filter listings against your profile: hard eligibility gates, weighted scoring, deadline-aware tracking.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "doctor": "node doctor.mjs",
+    "deadlines": "node deadline-check.mjs",
+    "tracker-check": "node tracker-check.mjs"
+  },
+  "license": "MIT",
+  "private": true
+}

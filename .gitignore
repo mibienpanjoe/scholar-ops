@@ -1,0 +1,20 @@
+# scholar-ops — user layer stays local (INV-12). Personal data never committed.
+
+# Profile: identity, nationality, GPA, finances
+config/profile.yml
+
+# Portals: personalized source list
+portals.yml
+
+# Application state, inbox, scan log
+data/*
+!data/.gitkeep
+
+# Generated evaluation reports
+reports/*
+!reports/.gitkeep
+
+# Node / OS noise
+node_modules/
+*.log
+.DS_Store
