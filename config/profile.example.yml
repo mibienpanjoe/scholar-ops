@@ -1,0 +1,64 @@
+# scholar-ops profile — single source of personal truth (INV-01).
+# Copy to config/profile.yml and fill in. That file is gitignored; it never leaves your machine.
+# Onboarding (/scholar-ops onboarding) can build this for you by interview.
+
+identity:
+  full_name: "Amina Traoré"
+  email: "amina@example.com"
+  # One or more citizenships. Nationality gates are the most common eligibility wall.
+  nationality: ["Burkina Faso"]
+  residence_country: "Burkina Faso"
+  birth_year: 2000            # integer — used for age gates
+
+education:
+  # Degrees already held. Empty list is fine if you are a current undergraduate.
+  degrees:
+    - level: "bachelor"       # high-school | bachelor | masters | phd
+      field: "Computer Science"
+      institution: "Université Joseph Ki-Zerbo"
+      gpa: "3.6/4.0"          # "value/scale"; use "unknown" if not graded this way
+      year: 2025              # graduation year; use null if in progress
+  currently_enrolled: false
+
+target:
+  # Which scholarship level(s) you are looking for. ALWAYS set explicitly — never assumed.
+  levels: ["masters"]         # any of: bachelor | masters | phd | exchange
+  fields: ["Computer Science", "Artificial Intelligence", "Data Science"]
+  countries: ["Germany", "France", "Canada"]   # preferred hosts; empty list = anywhere
+  earliest_start: "2027-09"   # YYYY-MM
+
+languages:
+  - language: "french"
+    proficiency: "native"     # native | fluent | intermediate | basic
+    certificate: null
+    score: null
+    status: "held"            # held | planned | none
+  - language: "english"
+    proficiency: "fluent"
+    certificate: "IELTS"
+    score: "7.0"
+    status: "held"
+
+finances:
+  funding_need: "full"        # full = need full funding | partial-ok = partial acceptable
+  application_fee_tolerance: 0   # max USD you will pay to apply; 0 = no fees
+
+constraints:
+  bond_acceptable: true       # accept return-home / service-bond scholarships?
+  study_mode: "on-campus"     # on-campus | online | either
+  relocation_limits: null     # free text, or null
+
+# Document readiness. Keys are fixed; values: ready | in-progress | missing.
+documents:
+  passport: ready
+  transcripts: ready
+  reference_letters: in-progress
+  cv: ready
+  motivation_letter_base: missing
+
+# Optional: achievements that strengthen applications (used for Block E angle).
+proof_points:
+  - name: "Final-year project"
+    detail: "Built a Bambara-French translation model; presented at national tech expo"
+  - name: "Open-source contribution"
+    detail: "Maintainer of a 200-star developer tool"
