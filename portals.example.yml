@@ -12,6 +12,8 @@ sources:                        # Level 1: sites to search. Scan builds the quer
   - site: "scholarshipportal.com"
   - site: "scholars4dev.com"
   - site: "opportunitiesforafricans.com"
+  - site: "scholarships365.info"
+  - site: "brightscholarship.com"
   - site: ""                    # empty = open web search (no site: filter)
 
 query:                          # how scan composes each Level-1 query from the profile
