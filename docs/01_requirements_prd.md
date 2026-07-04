@@ -48,7 +48,7 @@ scholar-ops is a repository the seeker clones and opens with their AI CLI. A ski
 - Compare mode: rank evaluated scholarships, deadline-aware
 
 ### Discovery
-- `portals.yml`: search queries with `site:` filters + tracked portal URLs (DAAD, Campus France, Erasmus Mundus catalogue, Chevening, Fulbright, Mastercard Foundation, aggregators)
+- `portals.yml`: source sites (`site:` filters) + tracked portal URLs (DAAD, Campus France, Erasmus Mundus catalogue, Chevening, Fulbright, Mastercard Foundation, aggregators); Level 1 queries are composed from the profile (level × field), not hand-written
 - Scan mode: WebSearch level (cheap) → Playwright level (tracked portals)
 - Results filtered by profile (level, field, nationality, deadline validity) and deduplicated
 - Matches land in `data/pipeline.md` inbox; pipeline mode evaluates them one by one on request

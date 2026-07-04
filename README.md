@@ -57,7 +57,7 @@ node tracker-check.mjs    # duplicate URLs, bad statuses, malformed rows (--fix 
 ## Configuration
 
 - Copy `config/profile.example.yml` → `config/profile.yml` (or let onboarding do it).
-- Copy `portals.example.yml` → `portals.yml` and tune the queries to your level, fields, and region.
+- Copy `portals.example.yml` → `portals.yml` and set the **sources** (sites + tracked portals) to sweep. Scan composes the search queries from your profile (level × field) — you don't hand-write them. Onboarding can seed this file for you.
 
 Both instance files are **gitignored** — your personal data never enters version control (see `DATA_CONTRACT.md`).
 

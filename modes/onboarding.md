@@ -33,6 +33,18 @@ Ask conversationally, a few related questions at a time, not as a rigid form. Co
 
 ## Confirm (FR-024)
 
-Show the resulting `config/profile.yml` and ask the Seeker to confirm or correct it. Then suggest next steps: `/scholar-ops <url>` to evaluate a scholarship, or `/scholar-ops scan` to discover some. Optionally suggest `node doctor.mjs` to verify setup.
+Show the resulting `config/profile.yml` and ask the Seeker to confirm or correct it.
 
-Reminder: this file is gitignored and never leaves the machine (INV-12).
+## Seed portals (optional)
+
+After the profile is confirmed, offer to set up scan: if `portals.yml` does not exist, offer to create it by copying `portals.example.yml`. Explain what you are seeding and what you are not:
+
+- You seed the **sources** (the sites and tracked portals to sweep) and the query **template** — the *where*.
+- You do **not** write query strings. Scan composes each Level-1 query from this profile (`target.levels` × `target.fields`) at run time, so the queries follow the profile automatically. The Seeker only maintains the site list.
+- Leave `query.include_nationality` at its default `false` (INV-12 — keeps citizenship out of search logs); mention it as an opt-in.
+
+Do not overwrite an existing `portals.yml`. This is the only file besides `config/profile.yml` onboarding may create, and only on the Seeker's yes.
+
+Then suggest next steps: `/scholar-ops <url>` to evaluate a scholarship, or `/scholar-ops scan` to discover some. Optionally suggest `node doctor.mjs` to verify setup.
+
+Reminder: both `config/profile.yml` and `portals.yml` are gitignored and never leave the machine (INV-12).

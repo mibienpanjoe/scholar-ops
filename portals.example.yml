@@ -2,16 +2,34 @@
 # Copy to portals.yml and customize. That file is gitignored.
 # Scan touches ONLY the sources listed here; it never becomes open-ended research.
 #
-# Tune the queries to your profile: your target level, fields, and nationality.
-# Do NOT hardcode personal data you would not want in a search-engine log beyond
-# level/field/region terms (INV-12 — no names, GPA, etc. in queries).
+# You maintain the WHERE (the sites + tracked portals below). Your profile drives
+# the WHAT: scan composes each Level-1 query from config/profile.yml
+# (target.levels × target.fields), so you do NOT rewrite query text when your
+# target changes — you update the profile once and queries follow.
 
-search_queries:                 # Level 1: WebSearch with site: filters
-  - query: "fully funded masters scholarship computer science 2027 site:scholarshipportal.com"
-    note: "adjust field + year to your target"
-  - query: "masters scholarship developing countries site:scholars4dev.com"
-  - query: "scholarships for African students masters site:opportunitiesforafricans.com"
-  - query: "Erasmus Mundus joint masters scholarship computer science"
+sources:                        # Level 1: sites to search. Scan builds the query
+                                # text from your profile for each site here.
+  - site: "scholarshipportal.com"
+  - site: "scholars4dev.com"
+  - site: "opportunitiesforafricans.com"
+  - site: ""                    # empty = open web search (no site: filter)
+
+query:                          # how scan composes each Level-1 query from the profile
+  template: "{funding} {level} scholarship {field} {year} site:{site}"
+  #   {level}   <- each of profile target.levels (masters, phd, …)
+  #   {field}   <- each of profile target.fields (Computer Science, …)
+  #   {funding} <- "fully funded" when finances.funding_need is "full", else ""
+  #   {year}    <- current year and next, from today's date
+  #   {site}    <- each sources[].site  (the "site:" token is dropped when site is "")
+  include_nationality: false    # opt-in. When true, scan may add a region term derived
+                                # from identity.nationality to queries. OFF by default:
+                                # keeps your citizenship out of search-engine logs
+                                # (INV-12). Turn on only if you accept that trade-off.
+  max_queries: 8                # hard cap on generated Level-1 queries per scan run.
+                                # Bounds the levels×fields×sources expansion.
+
+extra_queries:                  # optional. Hand-written queries, run verbatim as-is.
+  - "Erasmus Mundus joint masters scholarship computer science"
 
 tracked_portals:                # Level 2: Playwright navigation of specific portals
   - name: "DAAD Scholarship Database"

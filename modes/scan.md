@@ -6,12 +6,28 @@ Read `_shared.md` and `config/profile.yml` first.
 
 ## Boundaries (INV-13)
 
-`portals.yml` is the **complete world**. Scan only its `search_queries` and `tracked_portals`. This is a fixed sweep, not open-ended research. Do not follow the discovery into an evaluation, and do not spawn sub-agents in MVP.
+`portals.yml` is the **complete world**. Scan only its `sources`, `extra_queries`, and `tracked_portals`. This is a fixed sweep, not open-ended research. Do not follow the discovery into an evaluation, and do not spawn sub-agents in MVP.
 
 ## Two levels
 
 ### Level 1 — WebSearch (cheap)
-For each entry in `search_queries`, run the query. Collect candidate scholarship links from the results. Queries carry only level/field/region terms — never personal data (INV-12).
+
+Queries are **composed from the profile**, not hand-written. You do not read query strings out of `portals.yml` — you build them from `config/profile.yml` crossed with the `sources` list, using the `query.template`.
+
+**Compose:**
+1. Take `query.template` (default `"{funding} {level} scholarship {field} {year} site:{site}"`).
+2. Expand the placeholders:
+   - `{level}` → each of `target.levels`.
+   - `{field}` → each of `target.fields`.
+   - `{funding}` → `"fully funded"` when `finances.funding_need` is `full`, else empty.
+   - `{year}` → the current year and the next (from today's date).
+   - `{site}` → each `sources[].site`. When the site is empty, drop the trailing `site:` token entirely (open web search).
+3. Produce the cross-product of levels × fields × sources, dedupe identical strings, and **cap at `query.max_queries`** (default 8). When capping, prefer covering each field at least once before repeating a field.
+4. Append every string in `extra_queries` verbatim (these are run as-is and do **not** count toward, but are bounded by common sense alongside, `max_queries`).
+
+**INV-12 — the query firewall.** A composed query may contain **only** level, field, funding, region, and year terms. Never a name, birth year, GPA, email, or any other personal datum. `identity.nationality` is opt-in: include a region term derived from it **only if** `query.include_nationality` is `true`; default is off, keeping citizenship out of search-engine logs.
+
+Run each query. Collect candidate scholarship links from the results.
 
 ### Level 2 — Playwright (tracked portals)
 For each `enabled: true` entry in `tracked_portals`, navigate the URL and read listed scholarships. Skip portals already well covered by Level 1 results. If a portal is unreachable, skip it and log an error line — do not retry endlessly (EXC-07).

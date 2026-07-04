@@ -69,7 +69,7 @@ Chosen over alternatives:
 **Responsibility:** Bounded discovery of new candidate scholarships.
 **Owned invariants:** INV-13, INV-14
 **Files:** `modes/scan.md`, `portals.yml` (instance, user layer), `portals.example.yml` (template), `data/scan-history.tsv` (log).
-**Behavior:** Level 1 WebSearch from configured queries → Level 2 Playwright on tracked portals (FR-062); filter by profile level/field/nationality/deadline (FR-063); dedup-append survivors to PipelineInbox; log one TSV line per portal (FR-064); unreachable portal → skip + log (EXC-07).
+**Behavior:** Level 1 WebSearch with queries composed from the profile (level × field) × configured `sources`, capped at `query.max_queries` (FR-062a) → Level 2 Playwright on tracked portals (FR-062); filter by profile level/field/nationality/deadline (FR-063); dedup-append survivors to PipelineInbox; log one TSV line per portal (FR-064); unreachable portal → skip + log (EXC-07).
 **Must NOT:** touch sources outside `portals.yml`; evaluate anything (FRB-09) — the workflow ends at the append step.
 
 ### Toolbelt

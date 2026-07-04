@@ -91,9 +91,17 @@ Required-field validation (used by `doctor.mjs` and onboarding): `identity.full_
 
 ```yaml
 # scholar-ops portals — Scanner's complete world (INV-13). User layer.
-search_queries:               # Level 1 (WebSearch)
-  - query: 'masters scholarship computer science site:scholarshipportal.com'
-    note: "optional free text"
+sources:                      # Level 1 (WebSearch): sites to search
+  - site: "scholarshipportal.com"
+  - site: ""                  # empty = open web search (no site: filter)
+
+query:                        # Level 1 queries are composed from the profile
+  template: "{funding} {level} scholarship {field} {year} site:{site}"
+  include_nationality: false  # opt-in region term from identity.nationality (INV-12)
+  max_queries: 8              # cap on generated queries per scan run
+
+extra_queries:                # optional, run verbatim
+  - "Erasmus Mundus joint masters scholarship computer science"
 
 tracked_portals:              # Level 2 (Playwright)
   - name: "DAAD Scholarship Database"
@@ -202,7 +210,7 @@ Reports: duplicate URLs · statuses outside BR-06 vocabulary · malformed rows (
 |------|---------|--------|--------|
 | WebFetch(listing URL) | Evaluator Step 0 | 1/eval | fallback → Playwright |
 | Playwright navigate | Evaluator Step 0; Scanner L2 | ≤2/eval; 1/portal | JS-rendered pages only |
-| WebSearch | Evaluator Step 3 (selectivity); Scanner L1 | ≤3/eval; per configured query | MUST NOT contain profile data (INV-12) |
+| WebSearch | Evaluator Step 3 (selectivity); Scanner L1 | ≤3/eval; ≤ `query.max_queries` composed queries/scan | MUST NOT contain profile data (INV-12); nationality opt-in only |
 
 ## 10. Interface Summary Table
 

@@ -69,8 +69,9 @@ A note on enforcement layers: scholar-ops has a **probabilistic layer** (agent b
 
 ### FR-060: Scan (discovery)
 
-- **FR-061**: Scan MUST read `portals.yml` and MUST restrict discovery to its configured `search_queries` and `tracked_portals`; scanning is bounded configuration-driven work, never open-ended research.
-- **FR-062**: Scan MUST execute in two levels: Level 1 WebSearch (queries from config), Level 2 Playwright navigation (tracked portal URLs). Level 2 SHOULD only run for portals not satisfied by Level 1.
+- **FR-061**: Scan MUST read `portals.yml` and MUST restrict discovery to its configured `sources`, `extra_queries`, and `tracked_portals`; scanning is bounded configuration-driven work, never open-ended research.
+- **FR-062**: Scan MUST execute in two levels: Level 1 WebSearch, Level 2 Playwright navigation (tracked portal URLs). Level 2 SHOULD only run for portals not satisfied by Level 1.
+- **FR-062a**: Level 1 queries MUST be composed at run time from `config/profile.yml` (`target.levels` × `target.fields`, plus funding and year terms) crossed with the configured `sources`, using `query.template`; the expansion MUST be capped at `query.max_queries`. Any string in `extra_queries` MUST be run verbatim. A composed query MUST NOT contain personal data (INV-12); `identity.nationality` MAY contribute a region term only when `query.include_nationality` is true (default false).
 - **FR-063**: Scan MUST filter candidate listings against the profile before adding to the pipeline: target level match, field relevance, nationality not obviously excluded, deadline not passed.
 - **FR-064**: Surviving candidates MUST be appended to `data/pipeline.md` per FR-053 (deduplicated), and every scan run MUST append one line per portal to `data/scan-history.tsv` (timestamp, portal, found, added, errors).
 - **FR-065**: Scan MUST NOT evaluate listings in the same run; evaluation happens only via pipeline or evaluate modes.
