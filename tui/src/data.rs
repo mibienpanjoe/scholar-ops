@@ -4,9 +4,74 @@
 
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::model::{PipelineItem, Scholarship};
+
+/// Result of a status write.
+#[derive(Debug, PartialEq, Eq)]
+pub enum StatusWrite {
+    Written,
+    /// No row had the given URL — it was renamed/removed since the snapshot.
+    RowNotFound,
+}
+
+/// Rewrite exactly one row's Status cell in `data/scholarships.md`, matching the
+/// row by its URL (the unique key). Every other cell and every other line is
+/// preserved byte-for-byte. Written atomically (temp file + rename) so a crash
+/// or a concurrent reader never sees a half-written tracker.
+///
+/// This is the TUI's **only** write. It never touches verdict, score, report,
+/// or any other column — those belong to Claude (INV-04/05/06).
+pub fn write_status(path: &Path, url: &str, new_status: &str) -> io::Result<StatusWrite> {
+    let text = fs::read_to_string(path)?;
+    let mut wrote = false;
+    let mut out: Vec<String> = Vec::with_capacity(text.lines().count());
+    for line in text.lines() {
+        if !wrote
+            && let Some(edited) = edit_status_line(line, url, new_status)
+        {
+            out.push(edited);
+            wrote = true;
+            continue;
+        }
+        out.push(line.to_string());
+    }
+    if !wrote {
+        return Ok(StatusWrite::RowNotFound);
+    }
+
+    let mut new_text = out.join("\n");
+    if text.ends_with('\n') {
+        new_text.push('\n');
+    }
+
+    // Temp file in the same directory → rename is atomic on the same filesystem.
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    fs::write(&tmp, new_text)?;
+    fs::rename(&tmp, path)?;
+    Ok(StatusWrite::Written)
+}
+
+/// If `line` is the tracker row for `url`, return it with only the Status cell
+/// replaced; otherwise `None`. Splitting on `|` keeps every other segment (and
+/// its surrounding whitespace) exactly as it was.
+fn edit_status_line(line: &str, url: &str, new_status: &str) -> Option<String> {
+    if !line.trim_start().starts_with('|') {
+        return None;
+    }
+    let mut segs: Vec<&str> = line.split('|').collect();
+    // "" + 10 cells + "" == 12 segments. Cell k is segment k+1:
+    // Status = cell 7 → segment 8; URL = cell 9 → segment 10.
+    if segs.len() < 12 || segs[10].trim() != url {
+        return None;
+    }
+    let cell = format!(" {new_status} ");
+    segs[8] = &cell;
+    Some(segs.join("|"))
+}
 
 /// Read `data/scholarships.md` into rows. A missing file is **not** an error —
 /// a Seeker who hasn't evaluated anything yet still gets a working dashboard.
@@ -133,6 +198,33 @@ mod tests {
     fn missing_file_is_empty_not_error() {
         let rows = load_tracker(Path::new("/no/such/scholarships.md")).unwrap();
         assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn write_status_changes_only_status_cell() {
+        let path = std::env::temp_dir().join(format!("sops-wtest-{}.md", std::process::id()));
+        let original = "\
+| Name | Provider | Level | Country | Deadline | Score | Verdict | Status | Report | URL |
+|------|----------|-------|---------|----------|-------|---------|--------|--------|-----|
+| DAAD | DAAD | masters | de | 2026-10-31 | 4.20 | APPLY | found | reports/x.md | https://daad.de/x |
+";
+        fs::write(&path, original).unwrap();
+
+        let out = write_status(&path, "https://daad.de/x", "applied").unwrap();
+        assert_eq!(out, StatusWrite::Written);
+
+        let after = fs::read_to_string(&path).unwrap();
+        assert!(after.contains("| applied |"), "after:\n{after}");
+        assert!(after.contains("APPLY")); // verdict untouched
+        assert!(after.contains("4.20")); // score untouched
+        assert!(after.contains("https://daad.de/x")); // url untouched
+        assert!(!after.contains("| found |")); // old status gone
+        assert!(after.ends_with('\n')); // trailing newline preserved
+
+        let nf = write_status(&path, "https://nope", "applied").unwrap();
+        assert_eq!(nf, StatusWrite::RowNotFound);
+
+        fs::remove_file(&path).ok();
     }
 
     #[test]

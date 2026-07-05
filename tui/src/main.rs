@@ -3,10 +3,6 @@
 //! Reads `data/scholarships.md` and shows it as a scrollable table. Claude still
 //! does all evaluation; this is a fast, zero-token view over what it wrote.
 
-// Model/data types are added a milestone ahead of the UI that consumes them, so
-// allow dead code until the viewer wires everything up.
-#![allow(dead_code)]
-
 mod app;
 mod data;
 mod model;
@@ -46,6 +42,18 @@ fn handle_event(app: &mut App) -> io::Result<()> {
             return Ok(()); // ignore key-release (Windows emits both)
         }
 
+        // The status popup is modal: it captures keys until confirmed/cancelled.
+        if app.status_editing() {
+            match key.code {
+                KeyCode::Down | KeyCode::Char('j') => app.status_move(1),
+                KeyCode::Up | KeyCode::Char('k') => app.status_move(-1),
+                KeyCode::Enter => app.confirm_status(),
+                KeyCode::Esc | KeyCode::Char('s') => app.cancel_status(),
+                _ => {}
+            }
+            return Ok(());
+        }
+
         // While the filter box is open, keys edit the query instead of navigating.
         if app.input_mode {
             match key.code {
@@ -66,6 +74,7 @@ fn handle_event(app: &mut App) -> io::Result<()> {
             KeyCode::Up | KeyCode::Char('k') => app.select_prev(),
             KeyCode::PageDown => app.scroll_detail(3),
             KeyCode::PageUp => app.scroll_detail(-3),
+            KeyCode::Char('s') if app.view == View::Tracker => app.open_status_editor(),
             KeyCode::Char('/') if app.view == View::Tracker => app.start_filter(),
             KeyCode::Char('u') if app.view == View::Tracker => app.toggle_urgent(),
             KeyCode::Char('v') if app.view == View::Tracker => app.cycle_verdict_filter(),

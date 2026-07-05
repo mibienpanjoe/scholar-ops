@@ -7,13 +7,21 @@ use chrono::{Local, NaiveDate};
 use ratatui::widgets::{ListState, TableState};
 
 use crate::data;
-use crate::model::{PipelineItem, Scholarship, Urgency, Verdict};
+use crate::model::{PipelineItem, Scholarship, Status, Urgency, Verdict};
 
 /// The top-level view, switched with Tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
     Tracker,
     Pipeline,
+}
+
+/// Open status-edit popup. `url` snapshots the target row (the unique key), so
+/// the write can find it again even if the tracker changed underneath us.
+pub struct StatusEdit {
+    pub url: String,
+    pub name: String,
+    pub state: ListState,
 }
 
 pub struct App {
@@ -42,6 +50,9 @@ pub struct App {
     pub pipeline: Vec<PipelineItem>,
     pub pipeline_state: ListState,
 
+    /// Some when the status-edit popup is open (captures keys until confirmed).
+    pub status_edit: Option<StatusEdit>,
+
     pub today: NaiveDate,
     pub should_quit: bool,
     /// Transient one-line footer message (errors, confirmations).
@@ -64,6 +75,7 @@ impl App {
             input_mode: false,
             pipeline: Vec::new(),
             pipeline_state: ListState::default(),
+            status_edit: None,
             today: Local::now().date_naive(),
             should_quit: false,
             message: None,
@@ -137,6 +149,63 @@ impl App {
         self.detail_scroll = self.detail_scroll.saturating_add_signed(delta);
     }
 
+    // --- status edit (the only write) ---------------------------------------
+
+    pub fn status_editing(&self) -> bool {
+        self.status_edit.is_some()
+    }
+
+    /// Open the popup for the selected row, pre-selecting its current status.
+    pub fn open_status_editor(&mut self) {
+        if let Some(s) = self.selected() {
+            let start = Status::VOCAB.iter().position(|v| *v == s.status).unwrap_or(0);
+            let mut state = ListState::default();
+            state.select(Some(start));
+            self.status_edit = Some(StatusEdit {
+                url: s.url.clone(),
+                name: s.name.clone(),
+                state,
+            });
+        }
+    }
+
+    pub fn status_move(&mut self, delta: isize) {
+        if let Some(e) = &mut self.status_edit {
+            let next = wrapped(e.state.selected(), Status::VOCAB.len(), delta);
+            e.state.select(next);
+        }
+    }
+
+    pub fn cancel_status(&mut self) {
+        self.status_edit = None;
+    }
+
+    /// Commit the chosen status: re-read the tracker, rewrite the matching row's
+    /// Status cell atomically, reload, and keep the cursor on the same row.
+    pub fn confirm_status(&mut self) {
+        let Some(e) = self.status_edit.take() else {
+            return;
+        };
+        let chosen = Status::VOCAB[e.state.selected().unwrap_or(0)];
+        let path = self.path("data/scholarships.md");
+        match data::write_status(&path, &e.url, chosen.label()) {
+            Ok(data::StatusWrite::Written) => {
+                self.reload();
+                if let Some(pos) = self.visible.iter().position(|&i| self.scholarships[i].url == e.url)
+                {
+                    self.table.select(Some(pos));
+                    self.load_report();
+                }
+                self.message = Some(format!("status → {} · {}", chosen.label(), e.name));
+            }
+            Ok(data::StatusWrite::RowNotFound) => {
+                self.reload();
+                self.message = Some(format!("row not found (changed on disk?): {}", e.name));
+            }
+            Err(err) => self.message = Some(format!("status write failed: {err}")),
+        }
+    }
+
     // --- filters -------------------------------------------------------------
 
     pub fn start_filter(&mut self) {
@@ -188,10 +257,10 @@ impl App {
                 _ => return false,
             }
         }
-        if let Some(v) = self.verdict_filter {
-            if s.verdict != v {
-                return false;
-            }
+        if let Some(v) = self.verdict_filter
+            && s.verdict != v
+        {
+            return false;
         }
         if !self.filter_text.is_empty() {
             let q = self.filter_text.to_ascii_lowercase();
@@ -263,6 +332,7 @@ impl App {
             input_mode: false,
             pipeline: Vec::new(),
             pipeline_state: ListState::default(),
+            status_edit: None,
             today: NaiveDate::from_ymd_opt(2026, 7, 5).unwrap(),
             should_quit: false,
             message: None,
@@ -329,5 +399,36 @@ mod tests {
         app.cycle_verdict_filter(); // APPLY
         assert_eq!(app.visible.len(), 1);
         assert_eq!(app.selected().unwrap().verdict, Verdict::Apply);
+    }
+
+    #[test]
+    fn confirm_status_writes_disk_and_memory() {
+        let dir = std::env::temp_dir().join(format!("sops-app-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("data")).unwrap();
+        let tracker = dir.join("data/scholarships.md");
+        std::fs::write(
+            &tracker,
+            "| Name | P | L | C | Deadline | S | V | Status | R | URL |\n\
+             |---|---|---|---|---|---|---|---|---|---|\n\
+             | DAAD | DAAD | masters | de | 2026-10-31 | 4.20 | APPLY | found | — | https://daad.de/x |\n",
+        )
+        .unwrap();
+
+        let mut app = App::for_test(vec![]);
+        app.root = dir.clone();
+        app.reload();
+        assert_eq!(app.scholarships.len(), 1);
+
+        app.open_status_editor(); // starts on "found" (VOCAB index 0)
+        app.status_move(3); // → "applied"
+        app.confirm_status();
+
+        assert!(app.status_edit.is_none());
+        assert_eq!(app.scholarships[0].status, Status::Applied);
+        let after = std::fs::read_to_string(&tracker).unwrap();
+        assert!(after.contains("| applied |"), "after:\n{after}");
+        assert!(after.contains("APPLY")); // verdict untouched
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

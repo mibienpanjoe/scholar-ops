@@ -6,11 +6,11 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Text},
-    widgets::{Block, Cell, List, ListItem, Paragraph, Row, Table, Tabs, Wrap},
+    widgets::{Block, Cell, Clear, List, ListItem, Paragraph, Row, Table, Tabs, Wrap},
 };
 
 use crate::app::{App, View};
-use crate::model::{Urgency, Verdict};
+use crate::model::{Status, Urgency, Verdict};
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let [tabs, body, footer] =
@@ -29,6 +29,50 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         View::Pipeline => render_pipeline(frame, app, body),
     }
     render_footer(frame, app, footer);
+
+    if app.status_edit.is_some() {
+        render_status_popup(frame, app);
+    }
+}
+
+/// Modal list of the closed status vocabulary, centered over the whole frame.
+fn render_status_popup(frame: &mut Frame, app: &mut App) {
+    let height = Status::VOCAB.len() as u16 + 2;
+    let area = popup_area(frame.area(), 34, height);
+    let edit = app.status_edit.as_mut().expect("popup open");
+
+    let items: Vec<ListItem> = Status::VOCAB
+        .iter()
+        .map(|s| ListItem::new(s.label()))
+        .collect();
+    let title = format!(" set status · {} ", truncate(&edit.name, 16));
+    let list = List::new(items)
+        .block(Block::bordered().title(title).border_style(Style::new().fg(Color::Cyan)))
+        .highlight_style(Style::new().reversed())
+        .highlight_symbol("▸ ");
+
+    frame.render_widget(Clear, area); // wipe whatever's underneath
+    frame.render_stateful_widget(list, area, &mut edit.state);
+}
+
+/// A centered rectangle of the given size, clamped to `area`.
+fn popup_area(area: Rect, width: u16, height: u16) -> Rect {
+    let width = width.min(area.width);
+    let height = height.min(area.height);
+    Rect {
+        x: area.x + (area.width - width) / 2,
+        y: area.y + (area.height - height) / 2,
+        width,
+        height,
+    }
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        format!("{}…", s.chars().take(max - 1).collect::<String>())
+    }
 }
 
 fn render_tabs(frame: &mut Frame, app: &App, area: Rect) {
@@ -185,7 +229,8 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
         if let Some(v) = app.verdict_filter {
             chips.push(format!("verdict:{}", v.label()));
         }
-        let hint = "↑/↓ move · Tab view · / filter · u urgent · v verdict · r refresh · q quit";
+        let hint =
+            "↑/↓ move · Tab view · s status · / filter · u urgent · v verdict · r refresh · q quit";
         if chips.is_empty() {
             hint.to_string()
         } else {
