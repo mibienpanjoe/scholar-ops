@@ -7,6 +7,7 @@
 // allow dead code until the viewer wires everything up.
 #![allow(dead_code)]
 
+mod data;
 mod model;
 
 use std::io;
