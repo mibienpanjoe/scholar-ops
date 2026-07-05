@@ -5,23 +5,37 @@ use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
-    text::Line,
-    widgets::{Block, Cell, Paragraph, Row, Table},
+    text::{Line, Text},
+    widgets::{Block, Cell, Paragraph, Row, Table, Wrap},
 };
 
-use crate::app::App;
+use crate::app::{App, Focus};
 use crate::model::{Urgency, Verdict};
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let [body, footer] =
         Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(frame.area());
-    render_tracker(frame, app, body);
+    let [left, right] =
+        Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)]).areas(body);
+    render_tracker(frame, app, left);
+    render_detail(frame, app, right);
     render_footer(frame, app, footer);
+}
+
+/// Border style for a pane: highlighted when it holds keyboard focus.
+fn pane_border(active: bool) -> Style {
+    if active {
+        Style::new().fg(Color::Cyan)
+    } else {
+        Style::new().fg(Color::DarkGray)
+    }
 }
 
 fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
     let title = format!(" scholar-ops · {} tracked ", app.scholarships.len());
-    let block = Block::bordered().title(title);
+    let block = Block::bordered()
+        .title(title)
+        .border_style(pane_border(app.focus == Focus::Table));
 
     if app.scholarships.is_empty() {
         let hint = "No scholarships tracked yet.\n\nEvaluate one with Claude: /scholar-ops <url>";
@@ -69,11 +83,46 @@ fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
     frame.render_stateful_widget(table, area, &mut app.table);
 }
 
+fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
+    let block = Block::bordered()
+        .title(" detail ")
+        .border_style(pane_border(app.focus == Focus::Detail));
+
+    let mut lines: Vec<Line> = Vec::new();
+    match app.selected() {
+        Some(s) => {
+            lines.push(Line::from(s.name.clone()).bold());
+            lines.push(Line::from(format!("{} · {}", s.provider, s.level)).dim());
+            lines.push(Line::from(format!("country:  {}", s.country)));
+            let glyph = s.deadline.urgency(app.today).glyph();
+            lines.push(Line::from(format!("deadline: {} {}", s.deadline_raw, glyph)));
+            let score = s.score.map(|v| format!("{v:.2}/5")).unwrap_or_else(|| "—".into());
+            lines.push(Line::from(format!("score:    {}", score)));
+            lines.push(Line::from(format!("verdict:  {}", s.verdict_raw)));
+            lines.push(Line::from(format!("status:   {}", s.status.label())));
+            lines.push(Line::from(format!("url:      {}", s.url)));
+            lines.push(Line::from(""));
+            lines.push(Line::from("── report ──").dim());
+            match &app.report_body {
+                Some(body) => lines.extend(body.lines().map(|l| Line::from(l.to_string()))),
+                None => lines.push(Line::from("(no report file for this row)").dim()),
+            }
+        }
+        None => lines.push(Line::from("no selection").dim()),
+    }
+
+    let detail = Paragraph::new(Text::from(lines))
+        .block(block)
+        .wrap(Wrap { trim: false })
+        .scroll((app.detail_scroll, 0));
+    frame.render_widget(detail, area);
+}
+
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     let text = app
         .message
         .clone()
-        .unwrap_or_else(|| "↑/↓ move · r refresh · q quit".to_string());
+        .unwrap_or_else(|| "↑/↓ move · Tab focus · r refresh · q quit".to_string());
     frame.render_widget(Line::from(text).dim(), area);
 }
 
@@ -110,7 +159,7 @@ mod tests {
 
     /// Render one frame into an off-screen buffer and flatten it to a string.
     fn render(app: &mut App) -> String {
-        let mut terminal = Terminal::new(TestBackend::new(90, 12)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(140, 16)).unwrap();
         terminal.draw(|f| draw(f, app)).unwrap();
         terminal
             .backend()
@@ -121,17 +170,28 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn table_shows_name_and_verdict() {
-        let rows = parse_tracker(
+    fn one_row() -> Vec<crate::model::Scholarship> {
+        parse_tracker(
             "| Name | Provider | Level | Country | Deadline | Score | Verdict | Status | Report | URL |\n\
              |---|---|---|---|---|---|---|---|---|---|\n\
              | DAAD EPOS | DAAD | masters | Germany | 2026-10-31 | 4.20 | APPLY | preparing | reports/daad-epos.md | https://daad.de/x |\n",
-        );
-        let mut app = App::for_test(rows);
+        )
+    }
+
+    #[test]
+    fn table_shows_name_and_verdict() {
+        let mut app = App::for_test(one_row());
         let out = render(&mut app);
         assert!(out.contains("DAAD EPOS"), "buffer:\n{out}");
         assert!(out.contains("APPLY"), "buffer:\n{out}");
+    }
+
+    #[test]
+    fn detail_pane_shows_selected_url() {
+        let mut app = App::for_test(one_row());
+        let out = render(&mut app);
+        assert!(out.contains("url:"), "buffer:\n{out}");
+        assert!(out.contains("https://daad.de/x"), "buffer:\n{out}");
     }
 
     #[test]

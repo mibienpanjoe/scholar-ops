@@ -19,7 +19,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
 };
 
-use crate::app::App;
+use crate::app::{App, Focus};
 
 fn main() -> io::Result<()> {
     // Build state before touching the terminal, so an early error can't leave the
@@ -48,8 +48,16 @@ fn handle_event(app: &mut App) -> io::Result<()> {
         app.message = None; // any keypress clears the transient footer message
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => app.should_quit = true,
-            KeyCode::Down | KeyCode::Char('j') => app.next_row(),
-            KeyCode::Up | KeyCode::Char('k') => app.prev_row(),
+            KeyCode::Tab => app.toggle_focus(),
+            // Arrow/jk drive whichever pane holds focus.
+            KeyCode::Down | KeyCode::Char('j') => match app.focus {
+                Focus::Detail => app.scroll_detail(1),
+                Focus::Table => app.next_row(),
+            },
+            KeyCode::Up | KeyCode::Char('k') => match app.focus {
+                Focus::Detail => app.scroll_detail(-1),
+                Focus::Table => app.prev_row(),
+            },
             KeyCode::Char('r') => app.reload(),
             _ => {}
         }

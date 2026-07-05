@@ -9,6 +9,13 @@ use ratatui::widgets::TableState;
 use crate::data;
 use crate::model::Scholarship;
 
+/// Which pane keyboard scrolling drives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    Table,
+    Detail,
+}
+
 pub struct App {
     /// Repo root — `data/` and `reports/` resolve relative to it.
     pub root: PathBuf,
@@ -18,6 +25,12 @@ pub struct App {
     pub should_quit: bool,
     /// Transient one-line footer message (errors, confirmations).
     pub message: Option<String>,
+    /// Which pane arrow keys scroll.
+    pub focus: Focus,
+    /// Vertical scroll offset of the detail/report pane.
+    pub detail_scroll: u16,
+    /// Cached body of the selected row's report file (loaded on selection change).
+    pub report_body: Option<String>,
 }
 
 impl App {
@@ -29,6 +42,9 @@ impl App {
             today: Local::now().date_naive(),
             should_quit: false,
             message: None,
+            focus: Focus::Table,
+            detail_scroll: 0,
+            report_body: None,
         };
         app.reload();
         app
@@ -46,6 +62,7 @@ impl App {
                 data::sort_by_deadline(&mut rows);
                 self.scholarships = rows;
                 self.clamp_selection();
+                self.load_report();
             }
             Err(e) => self.message = Some(format!("tracker read error: {e}")),
         }
@@ -57,10 +74,35 @@ impl App {
 
     pub fn next_row(&mut self) {
         self.move_selection(1);
+        self.load_report();
     }
 
     pub fn prev_row(&mut self) {
         self.move_selection(-1);
+        self.load_report();
+    }
+
+    pub fn toggle_focus(&mut self) {
+        self.focus = match self.focus {
+            Focus::Table => Focus::Detail,
+            Focus::Detail => Focus::Table,
+        };
+    }
+
+    /// Scroll the detail pane, clamped at the top (bottom clamp is visual only).
+    pub fn scroll_detail(&mut self, delta: i16) {
+        self.detail_scroll = self.detail_scroll.saturating_add_signed(delta);
+    }
+
+    /// Read the selected row's report file into `report_body` and reset scroll.
+    /// A missing file is reported inline, not treated as fatal.
+    fn load_report(&mut self) {
+        self.detail_scroll = 0;
+        let rel = self.selected().and_then(|s| s.report.clone());
+        self.report_body = rel.map(|p| {
+            std::fs::read_to_string(self.path(&p))
+                .unwrap_or_else(|_| format!("(report file not found: {p})"))
+        });
     }
 
     /// Move the selection by `delta`, wrapping at the ends.
@@ -98,6 +140,9 @@ impl App {
             today: NaiveDate::from_ymd_opt(2026, 7, 5).unwrap(),
             should_quit: false,
             message: None,
+            focus: Focus::Table,
+            detail_scroll: 0,
+            report_body: None,
         }
     }
 }
