@@ -7,7 +7,7 @@ use chrono::{Local, NaiveDate};
 use ratatui::widgets::{ListState, TableState};
 
 use crate::data;
-use crate::model::{PipelineItem, Scholarship};
+use crate::model::{PipelineItem, Scholarship, Urgency, Verdict};
 
 /// The top-level view, switched with Tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,11 +23,20 @@ pub struct App {
 
     // Tracker view.
     pub scholarships: Vec<Scholarship>,
+    /// Indices into `scholarships` passing the active filters, in display order.
+    pub visible: Vec<usize>,
     pub table: TableState,
     /// Vertical scroll offset of the detail/report pane.
     pub detail_scroll: u16,
     /// Cached body of the selected row's report file (loaded on selection change).
     pub report_body: Option<String>,
+
+    // Filters (tracker only).
+    pub filter_text: String,
+    pub urgent_only: bool,
+    pub verdict_filter: Option<Verdict>,
+    /// True while the `/` text box is capturing keystrokes.
+    pub input_mode: bool,
 
     // Pipeline view.
     pub pipeline: Vec<PipelineItem>,
@@ -45,9 +54,14 @@ impl App {
             root: find_repo_root(),
             view: View::Tracker,
             scholarships: Vec::new(),
+            visible: Vec::new(),
             table: TableState::default(),
             detail_scroll: 0,
             report_body: None,
+            filter_text: String::new(),
+            urgent_only: false,
+            verdict_filter: None,
+            input_mode: false,
             pipeline: Vec::new(),
             pipeline_state: ListState::default(),
             today: Local::now().date_naive(),
@@ -76,8 +90,9 @@ impl App {
             Ok(items) => self.pipeline = items,
             Err(e) => self.message = Some(format!("pipeline read error: {e}")),
         }
-        self.clamp_selections();
-        self.load_report();
+        self.pipeline_state
+            .select(clamp(self.pipeline_state.selected(), self.pipeline.len()));
+        self.recompute_visible();
     }
 
     pub fn toggle_view(&mut self) {
@@ -87,8 +102,11 @@ impl App {
         };
     }
 
+    /// The selected scholarship, mapped through the visible-index set.
     pub fn selected(&self) -> Option<&Scholarship> {
-        self.table.selected().and_then(|i| self.scholarships.get(i))
+        let sel = self.table.selected()?;
+        let idx = *self.visible.get(sel)?;
+        self.scholarships.get(idx)
     }
 
     /// Move selection down (`+1`) or up (`-1`) in whichever view is active.
@@ -103,7 +121,7 @@ impl App {
     fn move_selection(&mut self, delta: isize) {
         match self.view {
             View::Tracker => {
-                let next = wrapped(self.table.selected(), self.scholarships.len(), delta);
+                let next = wrapped(self.table.selected(), self.visible.len(), delta);
                 self.table.select(next);
                 self.load_report();
             }
@@ -119,6 +137,83 @@ impl App {
         self.detail_scroll = self.detail_scroll.saturating_add_signed(delta);
     }
 
+    // --- filters -------------------------------------------------------------
+
+    pub fn start_filter(&mut self) {
+        self.input_mode = true;
+    }
+
+    /// Leave the text box. `clear` wipes the query; otherwise it's kept applied.
+    pub fn end_filter(&mut self, clear: bool) {
+        self.input_mode = false;
+        if clear {
+            self.filter_text.clear();
+            self.recompute_visible();
+        }
+    }
+
+    pub fn push_filter_char(&mut self, c: char) {
+        self.filter_text.push(c);
+        self.recompute_visible();
+    }
+
+    pub fn pop_filter_char(&mut self) {
+        self.filter_text.pop();
+        self.recompute_visible();
+    }
+
+    pub fn toggle_urgent(&mut self) {
+        self.urgent_only = !self.urgent_only;
+        self.recompute_visible();
+    }
+
+    /// Cycle the verdict filter: none → APPLY → MAYBE → SKIP → INELIGIBLE → DEAD → none.
+    pub fn cycle_verdict_filter(&mut self) {
+        self.verdict_filter = match self.verdict_filter {
+            None => Some(Verdict::Apply),
+            Some(Verdict::Apply) => Some(Verdict::Maybe),
+            Some(Verdict::Maybe) => Some(Verdict::Skip),
+            Some(Verdict::Skip) => Some(Verdict::Ineligible),
+            Some(Verdict::Ineligible) => Some(Verdict::Dead),
+            _ => None,
+        };
+        self.recompute_visible();
+    }
+
+    /// Does a row survive the active filters?
+    fn passes(&self, s: &Scholarship) -> bool {
+        if self.urgent_only {
+            match s.deadline.urgency(self.today) {
+                Urgency::Fire | Urgency::Warn => {}
+                _ => return false,
+            }
+        }
+        if let Some(v) = self.verdict_filter {
+            if s.verdict != v {
+                return false;
+            }
+        }
+        if !self.filter_text.is_empty() {
+            let q = self.filter_text.to_ascii_lowercase();
+            let hay = format!("{} {} {}", s.name, s.provider, s.level).to_ascii_lowercase();
+            if !hay.contains(&q) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Rebuild the visible-index set from the filters, then fix up selection.
+    fn recompute_visible(&mut self) {
+        let vis: Vec<usize> = (0..self.scholarships.len())
+            .filter(|&i| self.passes(&self.scholarships[i]))
+            .collect();
+        self.visible = vis;
+        self.table
+            .select(clamp(self.table.selected(), self.visible.len()));
+        self.load_report();
+    }
+
     /// Read the selected row's report file into `report_body` and reset scroll.
     /// A missing file is reported inline, not treated as fatal.
     fn load_report(&mut self) {
@@ -128,13 +223,6 @@ impl App {
             std::fs::read_to_string(self.path(&p))
                 .unwrap_or_else(|_| format!("(report file not found: {p})"))
         });
-    }
-
-    fn clamp_selections(&mut self) {
-        self.table
-            .select(clamp(self.table.selected(), self.scholarships.len()));
-        self.pipeline_state
-            .select(clamp(self.pipeline_state.selected(), self.pipeline.len()));
     }
 }
 
@@ -165,18 +253,22 @@ impl App {
             root: PathBuf::from("."),
             view: View::Tracker,
             scholarships,
-            table: TableState::default().with_selected(Some(0)),
+            visible: Vec::new(),
+            table: TableState::default(),
             detail_scroll: 0,
             report_body: None,
+            filter_text: String::new(),
+            urgent_only: false,
+            verdict_filter: None,
+            input_mode: false,
             pipeline: Vec::new(),
             pipeline_state: ListState::default(),
             today: NaiveDate::from_ymd_opt(2026, 7, 5).unwrap(),
             should_quit: false,
             message: None,
         };
-        if app.scholarships.is_empty() {
-            app.table.select(None);
-        }
+        app.recompute_visible();
+        app.table.select(if app.visible.is_empty() { None } else { Some(0) });
         app
     }
 }
@@ -194,5 +286,48 @@ fn find_repo_root() -> PathBuf {
             Some(p) => dir = p,
             None => return cwd,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::parse_tracker;
+
+    fn sample() -> Vec<Scholarship> {
+        parse_tracker(
+            "| Name | P | L | C | Deadline | S | V | St | R | URL |\n\
+             |---|---|---|---|---|---|---|---|---|---|\n\
+             | DAAD EPOS | DAAD | masters | de | 2026-07-08 | 4.2 | APPLY | found | — | https://a |\n\
+             | Chevening | FCDO | masters | uk | 2026-12-01 | 3.1 | MAYBE | found | — | https://b |\n\
+             | Ghost | X | masters | x | unknown | — | INELIGIBLE | found | — | https://c |\n",
+        )
+    }
+
+    #[test]
+    fn text_filter_narrows_visible() {
+        let mut app = App::for_test(sample());
+        assert_eq!(app.visible.len(), 3);
+        app.push_filter_char('d');
+        app.push_filter_char('a');
+        app.push_filter_char('a');
+        assert_eq!(app.visible.len(), 1);
+        assert_eq!(app.selected().unwrap().name, "DAAD EPOS");
+    }
+
+    #[test]
+    fn urgent_only_keeps_near_deadline() {
+        let mut app = App::for_test(sample());
+        app.toggle_urgent(); // today is 2026-07-05; only the 07-08 row is < 14d
+        assert_eq!(app.visible.len(), 1);
+        assert_eq!(app.selected().unwrap().name, "DAAD EPOS");
+    }
+
+    #[test]
+    fn verdict_filter_cycles() {
+        let mut app = App::for_test(sample());
+        app.cycle_verdict_filter(); // APPLY
+        assert_eq!(app.visible.len(), 1);
+        assert_eq!(app.selected().unwrap().verdict, Verdict::Apply);
     }
 }

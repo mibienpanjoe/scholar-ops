@@ -47,10 +47,16 @@ fn render_tabs(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
-    let block = Block::bordered().title(" tracker ").border_style(border());
+    let title = format!(" tracker · {}/{} ", app.visible.len(), app.scholarships.len());
+    let block = Block::bordered().title(title).border_style(border());
 
     if app.scholarships.is_empty() {
         let hint = "No scholarships tracked yet.\n\nEvaluate one with Claude: /scholar-ops <url>";
+        frame.render_widget(Paragraph::new(hint).dim().block(block), area);
+        return;
+    }
+    if app.visible.is_empty() {
+        let hint = "No rows match the filter.\n\nClear it with Esc (in filter) or toggle off.";
         frame.render_widget(Paragraph::new(hint).dim().block(block), area);
         return;
     }
@@ -58,9 +64,10 @@ fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
     let today = app.today;
     let header = Row::new(["Name", "Level", "Deadline", "Score", "Verdict", "Status"]).bold();
     let rows: Vec<Row> = app
-        .scholarships
+        .visible
         .iter()
-        .map(|s| {
+        .map(|&i| {
+            let s = &app.scholarships[i];
             let score = s.score.map(|v| format!("{v:.2}")).unwrap_or_else(|| "—".into());
             let urgency = s.deadline.urgency(today);
             let deadline = match s.deadline.days_remaining(today) {
@@ -163,9 +170,28 @@ fn render_pipeline(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
-    let text = app.message.clone().unwrap_or_else(|| {
-        "↑/↓ move · Tab view · PgUp/PgDn scroll report · r refresh · q quit".to_string()
-    });
+    let text = if app.input_mode {
+        format!("filter: {}_    (Enter apply · Esc clear)", app.filter_text)
+    } else if let Some(m) = &app.message {
+        m.clone()
+    } else {
+        let mut chips: Vec<String> = Vec::new();
+        if !app.filter_text.is_empty() {
+            chips.push(format!("text:'{}'", app.filter_text));
+        }
+        if app.urgent_only {
+            chips.push("urgent<14d".into());
+        }
+        if let Some(v) = app.verdict_filter {
+            chips.push(format!("verdict:{}", v.label()));
+        }
+        let hint = "↑/↓ move · Tab view · / filter · u urgent · v verdict · r refresh · q quit";
+        if chips.is_empty() {
+            hint.to_string()
+        } else {
+            format!("[{}]  {hint}", chips.join(" "))
+        }
+    };
     frame.render_widget(Line::from(text).dim(), area);
 }
 

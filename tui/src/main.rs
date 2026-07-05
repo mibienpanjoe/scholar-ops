@@ -19,7 +19,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
 };
 
-use crate::app::App;
+use crate::app::{App, View};
 
 fn main() -> io::Result<()> {
     // Build state before touching the terminal, so an early error can't leave the
@@ -45,6 +45,19 @@ fn handle_event(app: &mut App) -> io::Result<()> {
         if key.kind != KeyEventKind::Press {
             return Ok(()); // ignore key-release (Windows emits both)
         }
+
+        // While the filter box is open, keys edit the query instead of navigating.
+        if app.input_mode {
+            match key.code {
+                KeyCode::Char(c) => app.push_filter_char(c),
+                KeyCode::Backspace => app.pop_filter_char(),
+                KeyCode::Enter => app.end_filter(false),
+                KeyCode::Esc => app.end_filter(true),
+                _ => {}
+            }
+            return Ok(());
+        }
+
         app.message = None; // any keypress clears the transient footer message
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => app.should_quit = true,
@@ -53,6 +66,9 @@ fn handle_event(app: &mut App) -> io::Result<()> {
             KeyCode::Up | KeyCode::Char('k') => app.select_prev(),
             KeyCode::PageDown => app.scroll_detail(3),
             KeyCode::PageUp => app.scroll_detail(-3),
+            KeyCode::Char('/') if app.view == View::Tracker => app.start_filter(),
+            KeyCode::Char('u') if app.view == View::Tracker => app.toggle_urgent(),
+            KeyCode::Char('v') if app.view == View::Tracker => app.cycle_verdict_filter(),
             KeyCode::Char('r') => app.reload(),
             _ => {}
         }
