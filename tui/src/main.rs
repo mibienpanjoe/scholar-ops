@@ -1,7 +1,13 @@
 //! scholar-ops TUI — a read-only dashboard over the local tracker files.
 //!
-//! M0: terminal skeleton. Draws one bordered frame and quits on `q`.
-//! Everything real (parsing, the table, deadlines) arrives in later milestones.
+//! Terminal skeleton + domain model. Draws one bordered frame and quits on `q`.
+//! The table, panes, and filters are wired in from M3 onward.
+
+// Model/data types are added a milestone ahead of the UI that consumes them, so
+// allow dead code until the viewer wires everything up.
+#![allow(dead_code)]
+
+mod model;
 
 use std::io;
 
