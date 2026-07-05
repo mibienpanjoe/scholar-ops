@@ -58,6 +58,8 @@ node tracker-check.mjs    # duplicate URLs, bad statuses, malformed rows (--fix 
 
 A terminal dashboard over your tracker files, written in Rust + [ratatui](https://ratatui.rs), lives in [`tui/`](tui/). It's a **read-mostly viewer** — browse the tracker, sort by deadline, scroll reports, triage the scan inbox, all with **zero tokens**. Its only write is a row's `Status`; Claude still does every evaluation, gate, and score.
 
+![scholar-ops TUI — the tracker table with deadline-urgency colors and verdict badges on the left, the selected scholarship's report in the detail pane on the right](docs/assets/tui-preview.png)
+
 ```bash
 cd tui && cargo run --release     # or: cargo run --release --manifest-path tui/Cargo.toml
 ```
