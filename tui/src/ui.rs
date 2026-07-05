@@ -6,36 +6,48 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Text},
-    widgets::{Block, Cell, Paragraph, Row, Table, Wrap},
+    widgets::{Block, Cell, List, ListItem, Paragraph, Row, Table, Tabs, Wrap},
 };
 
-use crate::app::{App, Focus};
+use crate::app::{App, View};
 use crate::model::{Urgency, Verdict};
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
-    let [body, footer] =
-        Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(frame.area());
-    let [left, right] =
-        Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)]).areas(body);
-    render_tracker(frame, app, left);
-    render_detail(frame, app, right);
+    let [tabs, body, footer] =
+        Layout::vertical([Constraint::Length(1), Constraint::Min(0), Constraint::Length(1)])
+            .areas(frame.area());
+
+    render_tabs(frame, app, tabs);
+    match app.view {
+        View::Tracker => {
+            let [left, right] =
+                Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
+                    .areas(body);
+            render_tracker(frame, app, left);
+            render_detail(frame, app, right);
+        }
+        View::Pipeline => render_pipeline(frame, app, body),
+    }
     render_footer(frame, app, footer);
 }
 
-/// Border style for a pane: highlighted when it holds keyboard focus.
-fn pane_border(active: bool) -> Style {
-    if active {
-        Style::new().fg(Color::Cyan)
-    } else {
-        Style::new().fg(Color::DarkGray)
-    }
+fn render_tabs(frame: &mut Frame, app: &App, area: Rect) {
+    let selected = match app.view {
+        View::Tracker => 0,
+        View::Pipeline => 1,
+    };
+    let tabs = Tabs::new(vec![
+        format!(" Tracker ({}) ", app.scholarships.len()),
+        format!(" Pipeline ({}) ", app.pipeline.len()),
+    ])
+    .select(selected)
+    .highlight_style(Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+    .divider("");
+    frame.render_widget(tabs, area);
 }
 
 fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
-    let title = format!(" scholar-ops · {} tracked ", app.scholarships.len());
-    let block = Block::bordered()
-        .title(title)
-        .border_style(pane_border(app.focus == Focus::Table));
+    let block = Block::bordered().title(" tracker ").border_style(border());
 
     if app.scholarships.is_empty() {
         let hint = "No scholarships tracked yet.\n\nEvaluate one with Claude: /scholar-ops <url>";
@@ -84,9 +96,7 @@ fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
-    let block = Block::bordered()
-        .title(" detail ")
-        .border_style(pane_border(app.focus == Focus::Detail));
+    let block = Block::bordered().title(" detail ").border_style(border());
 
     let mut lines: Vec<Line> = Vec::new();
     match app.selected() {
@@ -118,12 +128,50 @@ fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(detail, area);
 }
 
+fn render_pipeline(frame: &mut Frame, app: &mut App, area: Rect) {
+    let block = Block::bordered()
+        .title(" pipeline inbox — run /scholar-ops pipeline to evaluate ")
+        .border_style(border());
+
+    if app.pipeline.is_empty() {
+        let hint = "Inbox empty.\n\nDiscover candidates with Claude: /scholar-ops scan";
+        frame.render_widget(Paragraph::new(hint).dim().block(block), area);
+        return;
+    }
+
+    let items: Vec<ListItem> = app
+        .pipeline
+        .iter()
+        .map(|p| {
+            let mark = if p.done { "[x]" } else { "[ ]" };
+            let deadline = if p.deadline.is_empty() { "—" } else { &p.deadline };
+            let line = Line::from(vec![
+                format!("{mark} ").dim(),
+                p.url.clone().into(),
+                format!("  · {}  · deadline {}", p.source, deadline).dim(),
+            ]);
+            ListItem::new(line)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(Style::new().reversed())
+        .highlight_symbol("▸ ");
+
+    frame.render_stateful_widget(list, area, &mut app.pipeline_state);
+}
+
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
-    let text = app
-        .message
-        .clone()
-        .unwrap_or_else(|| "↑/↓ move · Tab focus · r refresh · q quit".to_string());
+    let text = app.message.clone().unwrap_or_else(|| {
+        "↑/↓ move · Tab view · PgUp/PgDn scroll report · r refresh · q quit".to_string()
+    });
     frame.render_widget(Line::from(text).dim(), area);
+}
+
+/// Static border color for panes.
+fn border() -> Style {
+    Style::new().fg(Color::DarkGray)
 }
 
 /// Color for a verdict badge (mirrors the badge palette in 07_visual_identity).
@@ -154,7 +202,7 @@ fn urgency_style(u: Urgency) -> Style {
 mod tests {
     use super::*;
     use crate::app::App;
-    use crate::data::parse_tracker;
+    use crate::data::{parse_pipeline, parse_tracker};
     use ratatui::{Terminal, backend::TestBackend};
 
     /// Render one frame into an off-screen buffer and flatten it to a string.
@@ -192,6 +240,18 @@ mod tests {
         let out = render(&mut app);
         assert!(out.contains("url:"), "buffer:\n{out}");
         assert!(out.contains("https://daad.de/x"), "buffer:\n{out}");
+    }
+
+    #[test]
+    fn pipeline_view_lists_items() {
+        let mut app = App::for_test(vec![]);
+        app.pipeline = parse_pipeline(
+            "- [ ] https://x.org/scholarship | X scan 2026-07-04 | deadline 2026-09-01\n",
+        );
+        app.view = View::Pipeline;
+        let out = render(&mut app);
+        assert!(out.contains("https://x.org/scholarship"), "buffer:\n{out}");
+        assert!(out.contains("Pipeline (1)"), "buffer:\n{out}");
     }
 
     #[test]

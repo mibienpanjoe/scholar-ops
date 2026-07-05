@@ -6,7 +6,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use crate::model::Scholarship;
+use crate::model::{PipelineItem, Scholarship};
 
 /// Read `data/scholarships.md` into rows. A missing file is **not** an error —
 /// a Seeker who hasn't evaluated anything yet still gets a working dashboard.
@@ -37,6 +37,44 @@ pub fn parse_tracker(text: &str) -> Vec<Scholarship> {
 /// (BR-03 / the tracker row contract). Stable, so ties keep file order.
 pub fn sort_by_deadline(rows: &mut [Scholarship]) {
     rows.sort_by_key(|s| s.deadline.sort_key());
+}
+
+/// Read `data/pipeline.md` into inbox items (missing file → empty).
+pub fn load_pipeline(path: &Path) -> io::Result<Vec<PipelineItem>> {
+    match fs::read_to_string(path) {
+        Ok(t) => Ok(parse_pipeline(&t)),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e),
+    }
+}
+
+/// Parse the inbox checklist, ignoring any line that isn't a `- [ ]`/`- [x]` item.
+pub fn parse_pipeline(text: &str) -> Vec<PipelineItem> {
+    text.lines().filter_map(parse_pipeline_line).collect()
+}
+
+fn parse_pipeline_line(line: &str) -> Option<PipelineItem> {
+    let t = line.trim();
+    let (done, rest) = if let Some(r) = t.strip_prefix("- [ ]") {
+        (false, r)
+    } else if let Some(r) = t.strip_prefix("- [x]").or_else(|| t.strip_prefix("- [X]")) {
+        (true, r)
+    } else {
+        return None;
+    };
+    let mut parts = rest.split('|').map(str::trim);
+    let url = parts.next()?.to_string();
+    if url.is_empty() {
+        return None;
+    }
+    let source = parts.next().unwrap_or("").to_string();
+    let deadline = parts
+        .next()
+        .unwrap_or("")
+        .trim_start_matches("deadline")
+        .trim()
+        .to_string();
+    Some(PipelineItem { done, url, source, deadline })
 }
 
 /// Split a table line `| a | b | … |` into trimmed cells. `None` if the line
@@ -95,6 +133,23 @@ mod tests {
     fn missing_file_is_empty_not_error() {
         let rows = load_tracker(Path::new("/no/such/scholarships.md")).unwrap();
         assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn parses_pipeline_items() {
+        let items = parse_pipeline(
+            "# Inbox\n\
+             - [ ] https://daad.de/x | DAAD scan 2026-07-04 | deadline 2026-10-31\n\
+             prose line, ignored\n\
+             - [x] https://chevening.org/y | Chevening scan 2026-07-04 | deadline unknown\n",
+        );
+        assert_eq!(items.len(), 2);
+        assert!(!items[0].done);
+        assert_eq!(items[0].url, "https://daad.de/x");
+        assert_eq!(items[0].source, "DAAD scan 2026-07-04");
+        assert_eq!(items[0].deadline, "2026-10-31");
+        assert!(items[1].done);
+        assert_eq!(items[1].deadline, "unknown");
     }
 
     #[test]

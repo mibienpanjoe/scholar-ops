@@ -236,6 +236,16 @@ impl Scholarship {
     }
 }
 
+/// One entry in the discovery inbox `data/pipeline.md`, format:
+/// `- [ ] <url> | <source> scan YYYY-MM-DD | deadline <value>` (from scan.md).
+#[derive(Debug, Clone)]
+pub struct PipelineItem {
+    pub done: bool,
+    pub url: String,
+    pub source: String,
+    pub deadline: String, // raw; may be empty or "unknown"
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
