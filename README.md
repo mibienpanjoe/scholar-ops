@@ -54,6 +54,25 @@ node deadline-check.mjs   # every deadline, sorted, flagged under 14 days
 node tracker-check.mjs    # duplicate URLs, bad statuses, malformed rows (--fix normalizes status spelling)
 ```
 
+## Dashboard (optional)
+
+A terminal dashboard over your tracker files, written in Rust + [ratatui](https://ratatui.rs), lives in [`tui/`](tui/). It's a **read-mostly viewer** — browse the tracker, sort by deadline, scroll reports, triage the scan inbox, all with **zero tokens**. Its only write is a row's `Status`; Claude still does every evaluation, gate, and score.
+
+```bash
+cd tui && cargo run --release     # or: cargo run --release --manifest-path tui/Cargo.toml
+```
+
+Run it from the repo root (it finds `data/` by walking up). Requires the Rust toolchain ([rustup](https://rustup.rs)).
+
+| Key | Action |
+|-----|--------|
+| `↑`/`↓` or `j`/`k` | Move selection |
+| `Tab` | Switch Tracker ↔ Pipeline |
+| `PgUp`/`PgDn` | Scroll the report pane |
+| `s` | Set the selected row's status (the only write) |
+| `/` | Filter by name/provider · `u` urgent (<14d) · `v` cycle verdict |
+| `r` | Reload from disk · `q` quit |
+
 ## Configuration
 
 - Copy `config/profile.example.yml` → `config/profile.yml` (or let onboarding do it).
@@ -71,6 +90,7 @@ Full engineering documentation — PRD, SRS, invariants, architecture, interface
 
 - An agent-skill CLI (Claude Code or compatible)
 - Node.js ≥ 18 (for the diagnostics scripts)
+- Rust toolchain (optional — only for the `tui/` dashboard)
 
 ## License
 
