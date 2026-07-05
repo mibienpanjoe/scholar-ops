@@ -230,7 +230,7 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
             chips.push(format!("verdict:{}", v.label()));
         }
         let hint =
-            "↑/↓ move · PgUp/Dn scroll · Tab view · s status · / filter · u urgent · v verdict · r refresh · q quit";
+            "↑/↓ move · PgUp/Dn scroll · Tab view · o open · s status · / filter · u urgent · v verdict · r refresh · q quit";
         if chips.is_empty() {
             hint.to_string()
         } else {

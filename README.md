@@ -69,6 +69,7 @@ Run it from the repo root (it finds `data/` by walking up). Requires the Rust to
 | `↑`/`↓` or `j`/`k` | Move selection |
 | `Tab` | Switch Tracker ↔ Pipeline |
 | `PgUp`/`PgDn` | Scroll the report pane |
+| `o` | Open the selected URL in your browser |
 | `s` | Set the selected row's status (the only write) |
 | `/` | Filter by name/provider · `u` urgent (<14d) · `v` cycle verdict |
 | `r` | Reload from disk · `q` quit |

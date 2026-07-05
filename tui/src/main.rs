@@ -6,6 +6,7 @@
 mod app;
 mod data;
 mod model;
+mod open;
 mod ui;
 
 use std::io;
@@ -78,6 +79,7 @@ fn handle_event(app: &mut App) -> io::Result<()> {
             KeyCode::Char('/') if app.view == View::Tracker => app.start_filter(),
             KeyCode::Char('u') if app.view == View::Tracker => app.toggle_urgent(),
             KeyCode::Char('v') if app.view == View::Tracker => app.cycle_verdict_filter(),
+            KeyCode::Char('o') => app.open_selected(),
             KeyCode::Char('r') => app.reload(),
             _ => {}
         }

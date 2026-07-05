@@ -149,6 +149,26 @@ impl App {
         self.detail_scroll = self.detail_scroll.saturating_add_signed(delta);
     }
 
+    /// Open the selected row's (or pipeline item's) URL in the default browser.
+    /// The Seeker's outward action — the TUI never fetches the page (the wall).
+    pub fn open_selected(&mut self) {
+        let url = match self.view {
+            View::Tracker => self.selected().map(|s| s.url.clone()),
+            View::Pipeline => self
+                .pipeline_state
+                .selected()
+                .and_then(|i| self.pipeline.get(i))
+                .map(|p| p.url.clone()),
+        };
+        match url {
+            Some(u) if !u.is_empty() => match crate::open::open_url(&u) {
+                Ok(()) => self.message = Some(format!("opened in browser: {u}")),
+                Err(e) => self.message = Some(format!("open failed: {e}")),
+            },
+            _ => self.message = Some("no url on this row".into()),
+        }
+    }
+
     // --- status edit (the only write) ---------------------------------------
 
     pub fn status_editing(&self) -> bool {
