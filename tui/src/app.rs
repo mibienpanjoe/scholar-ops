@@ -42,7 +42,8 @@ impl App {
     /// Re-read the tracker from disk, keeping the selection in range.
     pub fn reload(&mut self) {
         match data::load_tracker(&self.path("data/scholarships.md")) {
-            Ok(rows) => {
+            Ok(mut rows) => {
+                data::sort_by_deadline(&mut rows);
                 self.scholarships = rows;
                 self.clamp_selection();
             }

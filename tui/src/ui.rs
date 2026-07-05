@@ -4,12 +4,13 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
-    style::{Style, Stylize},
+    style::{Color, Modifier, Style, Stylize},
     text::Line,
-    widgets::{Block, Paragraph, Row, Table},
+    widgets::{Block, Cell, Paragraph, Row, Table},
 };
 
 use crate::app::App;
+use crate::model::{Urgency, Verdict};
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let [body, footer] =
@@ -28,19 +29,25 @@ fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
+    let today = app.today;
     let header = Row::new(["Name", "Level", "Deadline", "Score", "Verdict", "Status"]).bold();
     let rows: Vec<Row> = app
         .scholarships
         .iter()
         .map(|s| {
             let score = s.score.map(|v| format!("{v:.2}")).unwrap_or_else(|| "—".into());
-            Row::new([
-                s.name.clone(),
-                s.level.clone(),
-                s.deadline_raw.clone(),
-                score,
-                s.verdict.label().to_string(),
-                s.status.label().to_string(),
+            let urgency = s.deadline.urgency(today);
+            let deadline = match s.deadline.days_remaining(today) {
+                Some(d) => format!("{} {} {}d", s.deadline_raw, urgency.glyph(), d),
+                None => format!("{} {}", s.deadline_raw, urgency.glyph()),
+            };
+            Row::new(vec![
+                Cell::from(s.name.clone()),
+                Cell::from(s.level.clone()),
+                Cell::from(deadline).style(urgency_style(urgency)),
+                Cell::from(score),
+                Cell::from(s.verdict.label()).style(verdict_style(s.verdict)),
+                Cell::from(s.status.label()),
             ])
         })
         .collect();
@@ -48,7 +55,7 @@ fn render_tracker(frame: &mut Frame, app: &mut App, area: Rect) {
     let widths = [
         Constraint::Fill(3),
         Constraint::Length(9),
-        Constraint::Length(12),
+        Constraint::Length(18),
         Constraint::Length(6),
         Constraint::Length(11),
         Constraint::Length(10),
@@ -68,6 +75,30 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
         .clone()
         .unwrap_or_else(|| "↑/↓ move · r refresh · q quit".to_string());
     frame.render_widget(Line::from(text).dim(), area);
+}
+
+/// Color for a verdict badge (mirrors the badge palette in 07_visual_identity).
+fn verdict_style(v: Verdict) -> Style {
+    match v {
+        Verdict::Apply => Style::new().fg(Color::Green).add_modifier(Modifier::BOLD),
+        Verdict::Maybe => Style::new().fg(Color::Yellow),
+        Verdict::Skip => Style::new().fg(Color::Red),
+        Verdict::Ineligible => Style::new().fg(Color::Red).add_modifier(Modifier::DIM),
+        Verdict::Dead => Style::new().fg(Color::DarkGray),
+        Verdict::Unknown => Style::new().fg(Color::Gray),
+    }
+}
+
+/// Color for a deadline by urgency (🔥 red, ⚠ yellow, passed dimmed, …).
+fn urgency_style(u: Urgency) -> Style {
+    match u {
+        Urgency::Fire => Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
+        Urgency::Warn => Style::new().fg(Color::Yellow),
+        Urgency::Passed => Style::new().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+        Urgency::Rolling => Style::new().fg(Color::Blue),
+        Urgency::Unknown => Style::new().fg(Color::DarkGray),
+        Urgency::Later => Style::new(),
+    }
 }
 
 #[cfg(test)]

@@ -33,6 +33,12 @@ pub fn parse_tracker(text: &str) -> Vec<Scholarship> {
         .collect()
 }
 
+/// Order rows by deadline: dated ascending, then `rolling`, then `unknown`
+/// (BR-03 / the tracker row contract). Stable, so ties keep file order.
+pub fn sort_by_deadline(rows: &mut [Scholarship]) {
+    rows.sort_by_key(|s| s.deadline.sort_key());
+}
+
 /// Split a table line `| a | b | … |` into trimmed cells. `None` if the line
 /// isn't a table row (doesn't start with `|`).
 fn split_row(line: &str) -> Option<Vec<&str>> {
@@ -89,5 +95,20 @@ mod tests {
     fn missing_file_is_empty_not_error() {
         let rows = load_tracker(Path::new("/no/such/scholarships.md")).unwrap();
         assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn sorts_dated_then_rolling_then_unknown() {
+        let mut rows = parse_tracker(
+            "| Name | P | L | C | Deadline | S | V | St | R | URL |\n\
+             |---|---|---|---|---|---|---|---|---|---|\n\
+             | Z | p | masters | x | rolling | 1 | SKIP | found | — | https://a |\n\
+             | Y | p | masters | x | 2026-12-01 | 1 | SKIP | found | — | https://b |\n\
+             | X | p | masters | x | unknown | 1 | SKIP | found | — | https://c |\n\
+             | W | p | masters | x | 2026-03-01 | 1 | SKIP | found | — | https://d |\n",
+        );
+        sort_by_deadline(&mut rows);
+        let order: Vec<&str> = rows.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(order, ["W", "Y", "Z", "X"]); // dated asc, rolling, unknown
     }
 }
