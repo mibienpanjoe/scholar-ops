@@ -1,61 +1,58 @@
 //! scholar-ops TUI — a read-only dashboard over the local tracker files.
 //!
-//! Terminal skeleton + domain model. Draws one bordered frame and quits on `q`.
-//! The table, panes, and filters are wired in from M3 onward.
+//! Reads `data/scholarships.md` and shows it as a scrollable table. Claude still
+//! does all evaluation; this is a fast, zero-token view over what it wrote.
 
 // Model/data types are added a milestone ahead of the UI that consumes them, so
 // allow dead code until the viewer wires everything up.
 #![allow(dead_code)]
 
+mod app;
 mod data;
 mod model;
+mod ui;
 
 use std::io;
 
 use ratatui::{
-    DefaultTerminal, Frame,
+    DefaultTerminal,
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    widgets::{Block, Paragraph},
 };
 
+use crate::app::App;
+
 fn main() -> io::Result<()> {
-    // `init` puts the terminal into raw mode + the alternate screen, and installs
-    // a panic hook that restores it if we crash. It hands back a ready terminal.
+    // Build state before touching the terminal, so an early error can't leave the
+    // terminal in raw mode. `init` then flips into raw mode + the alternate screen.
+    let mut app = App::new();
     let mut terminal = ratatui::init();
-
-    // Run the app. We capture the result instead of using `?` so that we always
-    // reach `restore()` below on the normal (non-panic) exit path.
-    let outcome = run(&mut terminal);
-
-    // Undo the terminal changes whether `run` returned Ok or Err. (On a *panic*
-    // the hook from `init` handles this instead — unwinding skips this line.)
+    let outcome = run(&mut terminal, &mut app);
     ratatui::restore();
     outcome
 }
 
-/// The event loop: draw a frame, block for a key, repeat until the user hits `q`.
-///
-/// Takes `&mut DefaultTerminal` — a *borrow*: `main` still owns the terminal, we
-/// just get temporary mutable access. `?` bubbles any IO error up to `main`.
-fn run(terminal: &mut DefaultTerminal) -> io::Result<()> {
-    loop {
-        terminal.draw(render)?;
-
-        // `event::read` blocks until the next terminal event (key, resize, …).
-        if let Event::Key(key) = event::read()? {
-            // Some platforms emit both Press and Release; only act on Press.
-            if key.kind == KeyEventKind::Press && key.code == KeyCode::Char('q') {
-                return Ok(());
-            }
-        }
+fn run(terminal: &mut DefaultTerminal, app: &mut App) -> io::Result<()> {
+    while !app.should_quit {
+        terminal.draw(|frame| ui::draw(frame, app))?;
+        handle_event(app)?;
     }
+    Ok(())
 }
 
-/// Renders one frame. Right now it's a pure function of nothing; once `App` state
-/// exists it will take `&App` and paint the table, panes, and footer from it.
-fn render(frame: &mut Frame) {
-    let block = Block::bordered().title(" scholar-ops dashboard ");
-    let body = Paragraph::new("M0 skeleton — the tracker table lands in M3.\n\nPress q to quit.")
-        .block(block);
-    frame.render_widget(body, frame.area());
+/// Block for one event and fold it into app state.
+fn handle_event(app: &mut App) -> io::Result<()> {
+    if let Event::Key(key) = event::read()? {
+        if key.kind != KeyEventKind::Press {
+            return Ok(()); // ignore key-release (Windows emits both)
+        }
+        app.message = None; // any keypress clears the transient footer message
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => app.should_quit = true,
+            KeyCode::Down | KeyCode::Char('j') => app.next_row(),
+            KeyCode::Up | KeyCode::Char('k') => app.prev_row(),
+            KeyCode::Char('r') => app.reload(),
+            _ => {}
+        }
+    }
+    Ok(())
 }
