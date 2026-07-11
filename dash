@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# dash — launch the scholar-ops TUI dashboard.
+#
+# Runs the compiled release binary directly (instant startup, no cargo
+# rebuild-check). Builds it once if the binary is missing. Works from any
+# directory inside the repo — it cd's to its own location first, and the TUI
+# walks up from there to find data/.
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+BIN="tui/target/release/scholar-tui"
+if [ ! -x "$BIN" ]; then
+  echo "dash: building scholar-tui (first run)…" >&2
+  cargo build --release --manifest-path tui/Cargo.toml
+fi
+
+exec "$BIN" "$@"

@@ -61,10 +61,19 @@ A terminal dashboard over your tracker files, written in Rust + [ratatui](https:
 ![scholar-ops TUI — the tracker table with deadline-urgency colors and verdict badges on the left, the selected scholarship's report in the detail pane on the right](docs/assets/tui-preview.png)
 
 ```bash
-cd tui && cargo run --release     # or: cargo run --release --manifest-path tui/Cargo.toml
+./dash            # from the repo root — builds once, then launches instantly
 ```
 
-Run it from the repo root (it finds `data/` by walking up). Requires the Rust toolchain ([rustup](https://rustup.rs)).
+`dash` is a small wrapper that runs the compiled release binary directly (no per-launch cargo rebuild-check) and builds it the first time. Requires the Rust toolchain ([rustup](https://rustup.rs)).
+
+Want to launch it from anywhere with a single word? Add a shell function:
+
+```bash
+# ~/.bashrc (or ~/.zshrc)
+sops() { ( cd /path/to/scholar-ops && exec ./dash "$@" ); }
+```
+
+Then `sops` opens the dashboard from any directory. Under the hood it still runs `tui/` (`cargo run --release --manifest-path tui/Cargo.toml` works too).
 
 | Key | Action |
 |-----|--------|
