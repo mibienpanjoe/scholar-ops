@@ -11,19 +11,25 @@ The **only** writer of `config/profile.yml` (INV-01). A conversational interview
 
 Do **not** overwrite. Offer a field-by-field update. Preserve every field the Seeker does not mention — never drop existing data.
 
-## The interview
+## How to ask — use the picker (AskUserQuestion)
 
-Ask conversationally, a few related questions at a time, not as a rigid form. Cover every required field. Adapt follow-ups to answers (e.g. no degree yet → ask current enrollment + expected graduation).
+Drive the interview with the **`AskUserQuestion` picker**, not prose walls of numbered questions. For any field whose value comes from a fixed set — an enum, yes/no, or multi-pick — present it as picker options. **Batch up to 4 related selectors into one `AskUserQuestion` call** so each step is a single clean screen the Seeker arrows through. The picker always adds an **Other** free-text choice, so a Seeker can still type an answer you didn't list — use the exact enum values from the schema as the options.
 
-1. **Identity** — full name, email, nationality/citizenship(s) (ask explicitly; this is the most common eligibility wall), country of residence, birth year.
-2. **Education** — each degree held: level, field, institution, GPA (+ scale), graduation year. Currently enrolled?
-3. **Target level — ask explicitly (FR-022). Never assume.** "Which level(s) of scholarship are you looking for — bachelor, masters, PhD, or exchange/short programs? You can pick more than one." Store the answer in `target.levels`.
-4. **Targets** — fields of study, preferred host countries/regions (empty = anywhere), earliest start (YYYY-MM).
-5. **Languages** — for each: proficiency, any certificate (IELTS/TOEFL/DELF…) with score, and whether held / planned / none.
-6. **Finances** — need full funding or is partial acceptable? Maximum application fee willing to pay (0 = none).
-7. **Constraints** — return-home/service bonds acceptable? On-campus, online, or either? Any relocation limits?
-8. **Documents** — readiness of passport, transcripts, reference letters, CV, motivation-letter base: `ready | in-progress | missing` each.
-9. **Proof points** (optional) — a few achievements, projects, publications, or leadership roles.
+Use plain free-text prompts only for open data that can't be enumerated — names, email, institutions, numbers (GPA, birth year, fee), fields of study, countries. Ask those in short related batches too; never drip one at a time, never dump a giant form.
+
+Cover every required field. Adapt follow-ups to answers. Never invent an answer — a skipped or unknown field becomes a placeholder or `unknown` (INV-06).
+
+## The interview — step by step
+
+1. **Identity** *(free-text batch)* — full name, email, nationality/citizenship(s) (ask explicitly; the most common eligibility wall), country of residence, birth year.
+2. **Education** *(free-text + picker)* — for each degree held: field, institution, GPA (+ scale), graduation year (null if in progress). Ask **level** as a picker (`high-school | bachelor | masters | phd`) and **currently enrolled?** as a yes/no picker. No degree yet → ask current enrollment + expected graduation.
+3. **Target level** *(picker, multi-select)* **— ask explicitly (FR-022). Never assume.** "Which scholarship level(s) are you after?" Options `bachelor | masters | phd | exchange`, multiSelect on. Store in `target.levels` (≥1 required).
+4. **Fields of study** *(select-or-type picker, multi-select)* — `AskUserQuestion` caps at 4 options, so don't use a canned list: **seed the options from the degree field(s) captured in Step 2** plus one broad umbrella (e.g. the parent discipline), multiSelect on, and rely on the picker's **Type something** row for anything else. Store in `target.fields` (≥1 required).
+5. **Countries + start** *(select-or-type picker + free-text)* — preferred host countries as a multi-select picker seeded with `Japan | Germany | Sweden | USA`, multiSelect on, plus the **Type something** row for any other country. No selection / "anywhere" → leave `target.countries` empty (= anywhere). Then free-text: earliest start (YYYY-MM).
+6. **Languages** *(picker + free-text, per language)* — for each language, one picker call with two selectors: **proficiency** (`native | fluent | intermediate | basic`) and **status** (`held | planned | none`); then free-text certificate name + score (skip if none).
+7. **Finances + constraints** *(one picker call, 3 selectors)* — **funding need** (`full | partial-ok`), **bond acceptable?** (yes/no), **study mode** (`on-campus | online | either`). Then free-text: max application fee in USD (0 = none), any relocation limits.
+8. **Documents** *(picker batch)* — readiness of passport, transcripts, reference_letters, cv, motivation_letter_base, each `ready | in-progress | missing`. Batch 4 selectors per call (2 calls total).
+9. **Proof points** *(optional, free-text)* — a few achievements, projects, publications, or leadership roles.
 
 ## Writing the profile
 
